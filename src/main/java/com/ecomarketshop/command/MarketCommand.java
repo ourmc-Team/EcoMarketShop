@@ -5,6 +5,7 @@ import com.ecomarketshop.data.MarketDataManager;
 import com.ecomarketshop.data.ShopDataManager;
 import com.ecomarketshop.gui.AbstractTradeScreenHandler;
 import com.ecomarketshop.gui.MarketListScreenHandler;
+import com.ecomarketshop.gui.MarketMyListingsScreenHandler;
 import com.ecomarketshop.gui.MarketScreenHandler;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -21,6 +22,7 @@ import net.minecraft.text.Text;
  * <ul>
  *   <li>{@code /market} — 打开全球拍卖行 GUI（所有玩家）</li>
  *   <li>{@code /market sell <单价>} — 打开市场上架 GUI（所有玩家）</li>
+ *   <li>{@code /market my} — 打开我的挂单 GUI，可下架自己的挂单（所有玩家）</li>
  *   <li>{@code /market reload} — 热重载商店/市场配置（OP only）</li>
  * </ul>
  */
@@ -68,6 +70,23 @@ public final class MarketCommand {
                         });
                         return 1;
                     })))
+
+                // /market my — 打开我的挂单 GUI（下架功能）
+                .then(CommandManager.literal("my")
+                    .executes(ctx -> {
+                        ServerPlayerEntity player = ctx.getSource().getPlayer();
+                        player.openHandledScreen(new NamedScreenHandlerFactory() {
+                            @Override
+                            public net.minecraft.screen.ScreenHandler createMenu(int syncId, net.minecraft.entity.player.PlayerInventory inv, net.minecraft.entity.player.PlayerEntity p) {
+                                return new MarketMyListingsScreenHandler(syncId, inv, player.getUuid());
+                            }
+                            @Override
+                            public Text getDisplayName() {
+                                return Text.literal("§6我的挂单");
+                            }
+                        });
+                        return 1;
+                    }))
 
                 // /market reload — 热重载配置
                 .then(CommandManager.literal("reload")

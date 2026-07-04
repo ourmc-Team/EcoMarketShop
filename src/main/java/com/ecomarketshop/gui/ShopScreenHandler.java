@@ -2,21 +2,15 @@ package com.ecomarketshop.gui;
 
 import com.ecomarketshop.config.EconomyConfig;
 import com.ecomarketshop.config.ShopItemConfig;
-import com.ecomarketshop.data.EconomyDataManager;
 import com.ecomarketshop.data.ShopDataManager;
 import com.ecomarketshop.trade.ShopTradeService;
-import com.ecomarketshop.util.ConfirmationManager.PendingConfirmation;
 import com.ecomarketshop.util.ItemMatcher;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -25,18 +19,15 @@ import java.util.List;
 /**
  * 管理员商店 GUI 处理器。
  *
- * <p>显示 {@link ShopDataManager} 中配置的商品，玩家点击商品后关闭 GUI 并在
- * 聊天框中通过 [确认]/[取消] 完成购买（实际交易由 {@link ShopTradeService} 执行）。
+ * <p>显示 {@link ShopDataManager} 中配置的商品。玩家点击商品后根据物品可堆叠性：
+ * <ul>
+ *   <li>可堆叠物品左键 → 直接购买 1 个，无需确认</li>
+ *   <li>不可堆叠物品左键 → 打开 {@link ConfirmScreenHandler} 确认购买</li>
+ * </ul>
  */
 public class ShopScreenHandler extends AbstractTradeScreenHandler {
 
-    /** 填充物品（灰色玻璃板） */
-    private static final ItemStack FILLER;
-
-    static {
-        FILLER = new ItemStack(Items.GRAY_STAINED_GLASS_PANE);
-        FILLER.set(DataComponentTypes.CUSTOM_NAME, Text.literal(" "));
-    }
+    // 填充物统一使用 GuiUtils 创建
 
     /**
      * 构造商店 GUI。
@@ -65,30 +56,19 @@ public class ShopScreenHandler extends AbstractTradeScreenHandler {
 
     @Override
     protected void triggerTrade(ServerPlayerEntity player, int slotIndex) {
-        // 从数据源获取配置以展示详情（实际扣费在确认时由 ShopTradeService 二次校验）
         ShopItemConfig config = ShopDataManager.getItemBySlot(slotIndex);
         if (config == null || config.getStock() == 0) {
             player.sendMessage(Text.literal("§c该商品已售罄！"), false);
             return;
         }
-        String name = config.getDisplayName() != null ? config.getDisplayName() : config.getId();
-        int price = config.getPrice();
-
-        MutableText desc = Text.literal("");
-        desc.append(Text.literal("§7类型: §f管理员商店购买\n"));
-        desc.append(Text.literal("§7商品: §f" + name + "\n"));
-        desc.append(Text.literal("§7数量: §f1\n"));
-        desc.append(Text.literal("§7价格: §e" + price + " " + EconomyConfig.getCurrencyName() + "\n"));
-        desc.append(Text.literal("§7当前余额: §e" + EconomyDataManager.getBalance(player.getUuid())
-            + " " + EconomyConfig.getCurrencyName()));
-
-        final int slot = slotIndex;
-        PendingConfirmation pc = new PendingConfirmation(
-            desc,
-            () -> ShopTradeService.executePurchase(player, slot),
-            null
-        );
-        requestConfirmation(player, pc);
+        Item item = ItemMatcher.getItem(config.getId());
+        if (item != null && item.getMaxCount() > 1) {
+            // 可堆叠 → 直接购买 1 个，无需确认
+            ShopTradeService.executePurchase(player, slotIndex, 1);
+        } else {
+            // 不可堆叠 → GUI 确认
+            ConfirmScreenHandler.openShopBuy(player, slotIndex);
+        }
     }
 
     @Override
@@ -117,7 +97,7 @@ public class ShopScreenHandler extends AbstractTradeScreenHandler {
         // 用填充物填满空槽
         for (int i = 0; i < GUI_SIZE; i++) {
             if (getDisplayInventory().getStack(i).isEmpty()) {
-                getDisplayInventory().setStack(i, FILLER.copy());
+                getDisplayInventory().setStack(i, GuiUtils.createFiller());
             }
         }
     }
@@ -128,12 +108,10 @@ public class ShopScreenHandler extends AbstractTradeScreenHandler {
     private ItemStack createDisplayStack(ShopItemConfig config) {
         Item item = ItemMatcher.getItem(config.getId());
         if (item == null) {
-            return FILLER.copy();
+            return GuiUtils.createFiller();
         }
 
-        ItemStack display = new ItemStack(item);
         String name = config.getDisplayName() != null ? config.getDisplayName() : config.getId();
-        display.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§f" + name));
 
         List<Text> lore = new ArrayList<>();
         lore.add(Text.literal("§7价格: §e" + config.getPrice() + " " + EconomyConfig.getCurrencyName()));
@@ -144,9 +122,12 @@ public class ShopScreenHandler extends AbstractTradeScreenHandler {
         } else {
             lore.add(Text.literal("§7库存: §c售罄"));
         }
-        lore.add(Text.literal("§a左键点击购买"));
-        display.set(DataComponentTypes.LORE, new LoreComponent(lore));
+        lore.add(Text.literal("§a左键点击购买 1 个"));
+        if (item.getMaxCount() > 1) {
+            lore.add(Text.literal("§e右键购买一组"));
+            lore.add(Text.literal("§eShift+左键批量购买"));
+        }
 
-        return display;
+        return GuiUtils.createInfoItem(item, "§f" + name, lore);
     }
 }

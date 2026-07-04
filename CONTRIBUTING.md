@@ -50,14 +50,13 @@ src/main/java/com/ecomarketshop/
 ├── command/      # 命令注册（/eco, /shop, /market）
 ├── config/       # 配置数据模型（EconomyConfig, ShopItemConfig）
 ├── data/         # 数据持久化管理（JSON 读写、脏标记优化）
-├── economy/      # 经济系统相关逻辑
 ├── gui/          # 服务端 Screen Handler（箱子界面交互）
 ├── market/       # 市场挂单数据模型
 ├── trade/        # 交易执行服务（服务端权威执行）
-└── util/         # 工具类（冷却、确认管理、物品校验、日志等）
+└── util/         # 工具类（冷却、物品匹配、序列化、校验、日志等）
 ```
 
-详细的架构与设计说明请参阅 [docs/DEVELOPMENT_GUIDE.md](./docs/DEVELOPMENT_GUIDE.md)。
+详细的设计文档请参阅 [`docs/`](./docs) 目录下的实现计划文档。
 
 ## 📐 代码风格规范
 

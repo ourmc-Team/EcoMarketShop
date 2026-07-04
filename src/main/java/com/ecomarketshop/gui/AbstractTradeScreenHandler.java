@@ -1,12 +1,14 @@
 package com.ecomarketshop.gui;
 
 import com.ecomarketshop.EcoMarketShop;
+import com.ecomarketshop.config.ShopItemConfig;
+import com.ecomarketshop.data.ShopDataManager;
 import com.ecomarketshop.util.CooldownManager;
-import com.ecomarketshop.util.ConfirmationManager;
-import com.ecomarketshop.util.ConfirmationManager.PendingConfirmation;
+import com.ecomarketshop.util.ItemMatcher;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
@@ -16,14 +18,13 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
 /**
- * 交易 GUI 抽象基类 — 实现"点击触发 → 聊天框确认"流程。
+ * 交易 GUI 抽象基类 — 实现“点击触发 → GUI 确认 / 直接执行”流程。
  *
- * <p>核心交互流程（替代原两步点击确认）：
+ * <p>核心交互流程：
  * <ol>
- *   <li>玩家左键点击商品槽位 → {@link #triggerTrade} 构建操作详情与回调</li>
- *   <li>调用 {@link #requestConfirmation}：经 {@link ConfirmationManager} 发送聊天
- *       [确认]/[取消] 按钮，并关闭 GUI（Minecraft 中 GUI 打开时无法点击聊天）</li>
- *   <li>玩家在聊天框点击 [确认] → 执行交易回调；点击 [取消] → 取消</li>
+ *   <li>玩家左键点击商品槽位 → {@link #triggerTrade} 根据物品可堆叠性决定直接执行或打开确认 GUI</li>
+ *   <li>右键点击可堆叠物品 → 打开 {@link ConfirmScreenHandler} 确认购买一组</li>
+ *   <li>Shift+左键点击可堆叠物品 → 打开 {@link ShopQuantityScreenHandler} 选择数量</li>
  * </ol>
  *
  * <p>安全设计：
@@ -80,6 +81,65 @@ public abstract class AbstractTradeScreenHandler extends ScreenHandler {
 
     @Override
     public void onSlotClick(int slotIndex, int button, SlotActionType action, PlayerEntity player) {
+        // === Shift+左键 → 打开数量选择 GUI（仅商店可堆叠物品）===
+        // QuickMove 是 Shift+点击产生的 ActionType，button == 0 是左 Shift
+        if (action == SlotActionType.QUICK_MOVE && button == 0) {
+            // 仅商店支持批量购买，市场保持整单购买不变
+            if (!(this instanceof ShopScreenHandler)) {
+                return;
+            }
+            // 忽略玩家背包区域的点击（槽位 54+）
+            if (slotIndex >= GUI_SIZE) {
+                return;
+            }
+            // 冷却检查
+            if (!CooldownManager.checkAndUpdate(player.getUuid())) {
+                player.sendMessage(Text.literal("§c操作过快，请稍后再试！"), false);
+                return;
+            }
+            // 校验槽位是否为合法可交易商品
+            if (isValidTradeSlot(slotIndex, player)) {
+                ShopItemConfig config = ShopDataManager.getItemBySlot(slotIndex);
+                if (config != null) {
+                    Item item = ItemMatcher.getItem(config.getId());
+                    // 不可堆叠物品回退到左键逻辑（买 1）
+                    if (item == null || item.getMaxCount() <= 1) {
+                        triggerTrade((ServerPlayerEntity) player, slotIndex);
+                    } else {
+                        ShopQuantityScreenHandler.open((ServerPlayerEntity) player, slotIndex);
+                    }
+                }
+            }
+            return;
+        }
+
+        // === 右键 → 直接购买一组（仅商店可堆叠物品）===
+        // PICKUP + button == 1 是右键单击
+        if (action == SlotActionType.PICKUP && button == 1) {
+            if (!(this instanceof ShopScreenHandler)) {
+                return;
+            }
+            if (slotIndex >= GUI_SIZE) {
+                return;
+            }
+            if (!CooldownManager.checkAndUpdate(player.getUuid())) {
+                player.sendMessage(Text.literal("§c操作过快，请稍后再试！"), false);
+                return;
+            }
+            if (isValidTradeSlot(slotIndex, player)) {
+                ShopItemConfig config = ShopDataManager.getItemBySlot(slotIndex);
+                if (config != null) {
+                    Item item = ItemMatcher.getItem(config.getId());
+                    // 仅可堆叠物品支持右键购买一组 → 打开确认 GUI
+                    if (item != null && item.getMaxCount() > 1) {
+                        ConfirmScreenHandler.openShopBulkBuy((ServerPlayerEntity) player, slotIndex);
+                    }
+                }
+            }
+            return;
+        }
+
+        // === 原有左键逻辑（买 1）===
         // 1. 只处理左键单击（PICKUP + button 0）
         if (action != SlotActionType.PICKUP || button != 0) {
             return;
@@ -127,17 +187,6 @@ public abstract class AbstractTradeScreenHandler extends ScreenHandler {
         return displayInventory;
     }
 
-    /**
-     * 发起聊天框确认：记录待确认操作、发送可点击消息，并关闭 GUI。
-     *
-     * @param player 玩家
-     * @param pc     待确认上下文（详情 + onConfirm/onCancel）
-     */
-    protected void requestConfirmation(ServerPlayerEntity player, PendingConfirmation pc) {
-        ConfirmationManager.startPending(player, pc);
-        player.closeHandledScreen();
-    }
-
     // ---- 子类必须实现的抽象方法 ----
 
     /**
@@ -146,8 +195,7 @@ public abstract class AbstractTradeScreenHandler extends ScreenHandler {
     protected abstract boolean isValidTradeSlot(int slot, PlayerEntity player);
 
     /**
-     * 触发交易：子类构建操作详情与 onConfirm/onCancel 回调，并调用
-     * {@link #requestConfirmation} 发起聊天确认。
+     * 触发交易：子类根据物品可堆叠性决定直接执行或打开确认 GUI。
      *
      * @param player     玩家
      * @param slotIndex  被点击的槽位索引

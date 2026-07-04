@@ -3,6 +3,7 @@
 build/
 out/
 classes/
+*.class
 
 # IDE - IntelliJ IDEA
 .idea/
@@ -43,3 +44,10 @@ docs/*.log
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Java
+*.hprof
+
+# Environment
+.env
+.env.local

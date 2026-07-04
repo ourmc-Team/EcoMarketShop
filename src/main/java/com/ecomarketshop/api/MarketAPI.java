@@ -54,6 +54,24 @@ public final class MarketAPI {
     }
 
     /**
+     * 下架指定挂单（仅限卖家本人的挂单）。
+     *
+     * <p>仅移除挂单记录，不负责返还物品。如需返还物品请使用
+     * {@link com.ecomarketshop.trade.MarketTradeService#executeDelist}。
+     *
+     * @param sellerUuid 卖家 UUID（用于权限校验）
+     * @param listingId  挂单 ID
+     * @return true 表示下架成功
+     */
+    public static boolean delistListing(UUID sellerUuid, String listingId) {
+        MarketListing listing = MarketDataManager.getListingById(listingId);
+        if (listing == null || !listing.getSellerUuid().equals(sellerUuid)) {
+            return false;
+        }
+        return MarketDataManager.removeListing(listingId);
+    }
+
+    /**
      * 获取当前挂单总数。
      *
      * @return 挂单数量

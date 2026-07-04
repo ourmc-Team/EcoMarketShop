@@ -204,6 +204,65 @@ public final class MarketDataManager {
     }
 
     /**
+     * 根据卖家 UUID 获取其挂单的页内索引项。
+     *
+     * <p>用于「我的挂单」GUI 按页内槽位定位挂单（与全局列表互不干扰）。
+     *
+     * @param sellerUuid 卖家 UUID
+     * @param pageIndex  页内索引（0 ~ ITEMS_PER_PAGE-1）
+     * @param currentPage 当前页码（0-based）
+     * @return 对应挂单，不存在返回 null
+     */
+    public static MarketListing getListingBySellerPageIndex(UUID sellerUuid, int pageIndex, int currentPage) {
+        List<MarketListing> sellerListings = getListingsBySeller(sellerUuid);
+        int absoluteIndex = currentPage * ITEMS_PER_PAGE + pageIndex;
+        if (absoluteIndex < 0 || absoluteIndex >= sellerListings.size()) {
+            return null;
+        }
+        return sellerListings.get(absoluteIndex);
+    }
+
+    /**
+     * 获取指定卖家某一页的挂单列表（只读副本）。
+     *
+     * @param sellerUuid 卖家 UUID
+     * @param page       页码（0-based）
+     * @return 该页的挂单列表
+     */
+    public static List<MarketListing> getPageListingsBySeller(UUID sellerUuid, int page) {
+        List<MarketListing> sellerListings = getListingsBySeller(sellerUuid);
+        int start = page * ITEMS_PER_PAGE;
+        int end = Math.min(start + ITEMS_PER_PAGE, sellerListings.size());
+        if (start >= sellerListings.size() || start < 0) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(sellerListings.subList(start, end));
+    }
+
+    /**
+     * 获取指定卖家的挂单总数。
+     *
+     * @param sellerUuid 卖家 UUID
+     * @return 挂单数量
+     */
+    public static int getTotalListingCountBySeller(UUID sellerUuid) {
+        return (int) listings.stream()
+            .filter(l -> l.getSellerUuid().equals(sellerUuid))
+            .count();
+    }
+
+    /**
+     * 获取指定卖家的挂单总页数。
+     *
+     * @param sellerUuid 卖家 UUID
+     * @return 总页数
+     */
+    public static int getTotalPagesBySeller(UUID sellerUuid) {
+        int count = getTotalListingCountBySeller(sellerUuid);
+        return (int) Math.ceil((double) count / ITEMS_PER_PAGE);
+    }
+
+    /**
      * 获取当前挂单总数。
      */
     public static int getTotalListingCount() {

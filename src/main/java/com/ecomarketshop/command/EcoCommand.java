@@ -3,7 +3,6 @@ package com.ecomarketshop.command;
 import com.ecomarketshop.EcoMarketShop;
 import com.ecomarketshop.config.EconomyConfig;
 import com.ecomarketshop.data.EconomyDataManager;
-import com.ecomarketshop.util.ConfirmationManager;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.CommandManager;
@@ -25,8 +24,6 @@ import java.util.Collection;
  *   <li>{@code /eco add <玩家> <数量>} — 增加余额（OP only）</li>
  *   <li>{@code /eco reduce <玩家> <数量>} — 扣减余额（OP only，余额不足拒绝，不变负）</li>
  *   <li>{@code /eco view <玩家>} — 查看指定玩家余额（OP only）</li>
- *   <li>{@code /eco confirm} — 确认聊天框中的待确认交易（玩家自助）</li>
- *   <li>{@code /eco cancel} — 取消聊天框中的待确认交易（玩家自助）</li>
  * </ul>
  */
 public final class EcoCommand {
@@ -183,20 +180,6 @@ public final class EcoCommand {
                         }
                         return 1;
                     })))
-
-                // /eco confirm — 确认聊天框中的待确认交易（由可点击按钮触发）
-                .then(CommandManager.literal("confirm")
-                    .executes(ctx -> {
-                        ConfirmationManager.confirm(ctx.getSource().getPlayer());
-                        return 1;
-                    }))
-
-                // /eco cancel — 取消聊天框中的待确认交易（由可点击按钮触发）
-                .then(CommandManager.literal("cancel")
-                    .executes(ctx -> {
-                        ConfirmationManager.cancel(ctx.getSource().getPlayer());
-                        return 1;
-                    }))
             );
         });
     }

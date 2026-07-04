@@ -161,15 +161,26 @@ public final class ShopDataManager {
     }
 
     /**
-     * 扣减库存（若为无限库存则不扣）。
-     *
-     * <p>线程安全：方法内部使用 {@code synchronized(ShopDataManager.class)} 保证
-     * check-then-act 的原子性，防止并发超卖。
+     * 扣减库存（若为无限库存则不扣）。委托给批量方法，数量为 1。
      *
      * @param slotIndex 槽位索引
      * @return true 表示扣减成功或无限库存
      */
     public static synchronized boolean decrementStock(int slotIndex) {
+        return decrementStock(slotIndex, 1);
+    }
+
+    /**
+     * 批量扣减库存（若为无限库存则不扣）。
+     *
+     * <p>线程安全：方法内部使用 {@code synchronized(ShopDataManager.class)} 保证
+     * check-then-act 的原子性，防止并发超卖。
+     *
+     * @param slotIndex 槽位索引
+     * @param quantity  扣减数量
+     * @return true 表示扣减成功或无限库存
+     */
+    public static synchronized boolean decrementStock(int slotIndex, int quantity) {
         ShopItemConfig item = slotIndexMap.get(slotIndex);
         if (item == null) {
             return false;
@@ -177,10 +188,10 @@ public final class ShopDataManager {
         if (item.isInfiniteStock()) {
             return true;
         }
-        if (item.getStock() <= 0) {
+        if (item.getStock() < quantity) {
             return false;
         }
-        item.setStock(item.getStock() - 1);
+        item.setStock(item.getStock() - quantity);
         return true;
     }
 

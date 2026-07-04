@@ -8,7 +8,6 @@ import com.ecomarketshop.data.MarketDataManager;
 import com.ecomarketshop.config.EconomyConfig;
 import com.ecomarketshop.data.ShopDataManager;
 import com.ecomarketshop.util.CooldownManager;
-import com.ecomarketshop.util.ConfirmationManager;
 import com.ecomarketshop.util.TradeLogger;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -91,8 +90,6 @@ public class EcoMarketShop implements ModInitializer {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             UUID uuid = handler.getPlayer().getUuid();
-            // 取消待确认交易（返还已捕获的上架物品，防止丢失）
-            ConfirmationManager.clear(uuid);
             // 仅当余额发生变动时才执行写盘（脏标记优化）
             EconomyDataManager.saveAll();
             // 清理玩家冷却记录，防止内存泄漏
