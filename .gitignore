@@ -1,0 +1,45 @@
+# Gradle
+.gradle/
+build/
+out/
+classes/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# IDE - Eclipse
+.settings/
+.project
+.classpath
+.factorypath
+bin/
+*.launch
+
+# IDE - VS Code
+.vscode/
+
+# IDE - NetBeans
+nbproject/
+.nb-gradle/
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+*.bak
+
+# Minecraft dev
+run/
+runs/
+logs/
+
+# Prevent stray log exports from being committed to docs/
+docs/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

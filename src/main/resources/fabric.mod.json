@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "ecomarketshop",
+  "version": "${version}",
+  "name": "EcoMarketShop",
+  "description": "服务端经济、商店与市场套件 — 纯原版GUI，无需客户端模组",
+  "authors": [
+    "ourmc-Team"
+  ],
+  "contact": {
+    "homepage": "https://github.com/ourmc-Team/EcoMarketShop",
+    "sources": "https://github.com/ourmc-Team/EcoMarketShop"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "accessWidener": "ecomarketshop.accesswidener",
+  "entrypoints": {
+    "main": [
+      "com.ecomarketshop.EcoMarketShop"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "fabric-api": ">=0.115.0",
+    "minecraft": "1.21.8",
+    "java": ">=21"
+  }
+}
